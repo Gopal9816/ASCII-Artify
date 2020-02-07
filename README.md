@@ -9,7 +9,7 @@ This program generates an ASCII art representation. ASCII art uses ASCII charact
 * [colorama](https://pypi.org/project/colorama/)
 
 ## Usage
-` python ascii.py filename [-h] [-i] [-c {average,minmax,luminosity}] [-C {red,blue,green,cyan,magenta,yellow}] ` <br/>
+` python ascii.py filename [-h] [-i] [-c {average,minmax,luminosity}] [-C {red, blue, green, cyan, magenta, yellow}]` <br/>
 
 ### positional arguments:
     filename    Image to be ASCII Artified
