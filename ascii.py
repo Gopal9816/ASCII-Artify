@@ -5,6 +5,8 @@ import os
 import argparse
 import colorama
 import time
+import requests
+import io
 
 im_height = 200 #400
 im_width = 128 #300
@@ -31,6 +33,17 @@ output_color = colorama.Fore.WHITE
 ascii_mask = " :co@"
 #ascii_mask = "`^\",:;Il!i~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
 
+def is_image(filename):
+    if ".jpg" in filename:
+        return True
+    elif ".jpeg" in filename:
+        return True
+    elif ".png" in filename:
+        return True
+    elif ".gif" in filename:
+        return True
+    return False
+
 def is_link(filename):
     if "http://" in filename or "https://" in filename:
         return True
@@ -42,18 +55,25 @@ def is_gif(filename):
     return False
 
 def get_image(filename):
+    if not is_image(filename):
+        raise TypeError
+    
     if is_link(filename):
-        pass
+        res = requests.get(filename)
+        image = Image.open(io.BytesIO(res.content))
     elif not os.path.exists(filename):
         raise FileNotFoundError
-
-    image = Image.open(filename)
+    else:
+        image = Image.open(filename)
 
     frames = []
     if is_gif(filename):
         try:
             while True:
-                frames.append(image.convert('RGB'))
+                new_frame = image.copy()
+                new_frame = new_frame.convert('RGB')
+                new_frame.thumbnail((200,128),Image.ANTIALIAS)
+                frames.append(new_frame)
                 image.seek(image.tell()+1)
         except EOFError:
             return frames
@@ -164,7 +184,12 @@ if __name__ == "__main__":
     colorama.init()
     args = parser.parse_args()
 
-    frames = get_image(args.filename)
+    try:
+        frames = get_image(args.filename)
+    except TypeError:
+        print('Unsupported file format given')
+    # print(len(frames))
+        
 
     if args.conversion == "average":
         convt_frames = rgb2brightness_avg(frames)
