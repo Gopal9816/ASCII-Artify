@@ -1,5 +1,6 @@
 # ASCII Art Generator 
 *Note: Still in Progress*
+*Update: Weebs Rejoice!!, the program can now also display your gifs in the terminal UwU*
 
 This program generates an ASCII art representation. ASCII art uses ASCII characthers to represent pixels of an image. The image is printed as strings of characthers on the terminal. Built as a part of Robert Heaton's PFAB series which can be found [here](https://robertheaton.com/2018/06/12/programming-projects-for-advanced-beginners-ascii-art/)
 

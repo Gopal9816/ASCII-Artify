@@ -1,9 +1,13 @@
 from PIL import Image
-from PIL import ImageFilter
 import numpy as np
 import sys
+import os
 import argparse
 import colorama
+import time
+
+im_height = 200 #400
+im_width = 128 #300
 
 parser = argparse.ArgumentParser()
 parser.add_argument('filename',
@@ -24,84 +28,150 @@ parser.add_argument('-C',
                     default='white')
 
 output_color = colorama.Fore.WHITE
+ascii_mask = " :co@"
+#ascii_mask = "`^\",:;Il!i~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
 
-def rgb2brightness_avg(im_arr):
-    n_rows = im_arr.shape[0]
-    n_cols = im_arr.shape[1]
-    res = np.ones((n_rows,n_cols),dtype=int)
-    for i in range(0,n_rows):
-        for j in range(0,n_cols):
-            res[i][j] = (im_arr[i][j][0] + im_arr[i][j][1] + im_arr[i][j][2])//3
-    return res
+def is_link(filename):
+    if "http://" in filename or "https://" in filename:
+        return True
+    return False
 
-def rgb2brightness_min_max(im_arr):
-    n_rows = im_arr.shape[0]
-    n_cols = im_arr.shape[1]
-    res = np.ones((n_rows,n_cols),dtype=int)
-    for i in range(0,n_rows):
-        for j in range(0,n_cols):
-            res[i][j] = (np.min(im_arr[i][j]) + np.max(im_arr[i][j]))//2
-    return res
+def is_gif(filename):
+    if ".gif" in filename:
+        return True
+    return False
 
-def rgb2brightness_luminosity(im_arr):
-    n_rows = im_arr.shape[0]
-    n_cols = im_arr.shape[1]
-    res = np.ones((n_rows,n_cols),dtype=int)
-    for i in range(0,n_rows):
-        for j in range(0,n_cols):
-            res[i][j] = (0.21*im_arr[i][j][0] + 0.72*im_arr[i][j][1] + 0.07*im_arr[i][j][2])
-    return res
+def get_image(filename):
+    if is_link(filename):
+        pass
+    elif not os.path.exists(filename):
+        raise FileNotFoundError
 
-def invert_brightness(im_arr):
-    n_rows = im_arr.shape[0]
-    n_cols = im_arr.shape[1]
-    for i in range(0,n_rows):
-        for j in range(0,n_cols):
-            im_arr[i][j] = 255-im_arr[i][j]
+    image = Image.open(filename)
 
-def print_vals(im_arr):
-    n_rows = im_arr.shape[0]
-    n_cols = im_arr.shape[1]
-    for i in range(0,n_rows):
-        for j in range(0,n_cols):
-            print(im_arr[i][j])
+    frames = []
+    if is_gif(filename):
+        try:
+            while True:
+                frames.append(image.convert('RGB'))
+                image.seek(image.tell()+1)
+        except EOFError:
+            return frames
+    else:
+        image = image.resize((im_height,im_width))
+        frames.append(image)
+    return frames
+
+def rgb2brightness_avg(frames):
+    width,height = frames[0].size
     
-def map2ascii(im_arr):
-    n_rows = im_arr.shape[0]
-    n_cols = im_arr.shape[1]
+    res_frames = []
 
-    for i in range(0,n_rows):
-        for j in range(0,n_cols):
-            im_arr[i][j] = int((im_arr[i][j]/255)*64)
+    for image in frames:
+        res = np.ones((height,width),dtype=int)
+        for y in range(0,height):
+            for x in range(0,width):
+                try:
+                    r,g,b = image.getpixel((x,y))
+                except:
+                    r,g,b,a = image.getpixel((x,y))
+                res[y][x] = (r+g+b)//3
+        res_frames.append(res)
+    
+    return res_frames
 
-def printImg(im_arr):
-    n_rows = im_arr.shape[0]
-    n_cols = im_arr.shape[1]
-    ascii_mask = "`^\",:;Il!i~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"
+def rgb2brightness_min_max(frames):
+    width,height = frames[0].size
+    
+    res_frames = []
 
-    for i in range(0,n_rows):
-        output = ""
-        for j in range(0, n_cols):
-            output += ascii_mask[im_arr[i][j]]*2
-        print(output_color+output)
+    for image in frames:
+        res = np.ones((height,width),dtype=int)
+        for y in range(0,height):
+            for x in range(0,width):
+                res[y][x] = (np.min(image.getpixel((x,y))) + np.max(image.getpixel((x,y))))//2
+        res_frames.append(res)
+    
+    return res_frames
+
+def rgb2brightness_luminosity(frames):
+    width,height = frames[0].size
+    
+    res_frames = []
+    
+    for image in frames:
+        res = np.ones((height,width),dtype=int)
+        for y in range(0,height):
+            for x in range(0,width):
+                try:
+                    r,g,b = image.getpixel((x,y))
+                except:
+                    r,g,b,a = image.getpixel((x,y))
+                res[y][x] = (0.21*r + 0.72*g + 0.07*b)
+        res_frames.append(res)
+    
+    return res_frames
+
+def invert_brightness(frames):
+    width,height = frames[0].size
+    
+    res_frames = []
+    for image in frames:
+        for i in range(0,n_rows):
+            for j in range(0,n_cols):
+                image[i][j] = 255-image[i][j]
+
+def print_vals(frames):
+    n_rows = frames[0].shape[0]
+    n_cols = frames[0].shape[1]
+    
+    res_frames = []
+    for image in frames:
+        for i in range(0,n_rows):
+            for j in range(0,n_cols):
+                print(image[i][j])
+    
+def map2ascii(frames):
+    n_rows = frames[0].shape[0]
+    n_cols = frames[0].shape[1]
+    
+    res_frames = []
+
+    output_levels = len(ascii_mask)-1
+
+    for image in frames:
+        for i in range(0,n_rows):
+            for j in range(0,n_cols):
+                image[i][j] = int((image[i][j]/255)*output_levels)
+
+def printImg(frames):
+    n_rows = frames[0].shape[0]
+    n_cols = frames[0].shape[1]
+    delay = 0.1
+
+    for image in frames:
+        print("\033[H\033[J")
+        for i in range(0,n_rows):
+            output = ""
+            for j in range(0, n_cols):
+                output += ascii_mask[image[i][j]]*2
+            print(output_color+output)
+        time.sleep(delay)
+        
 
 
 if __name__ == "__main__":
     colorama.init()
     args = parser.parse_args()
-    img_ip = Image.open(args.filename)
-    #print(img_ip.format,img_ip.size,img_ip.mode)
 
-    img = img_ip.resize((400,300))
-    #img = img.filter(ImageFilter.DETAIL)
-    im_arr = np.array(img.getdata(),int).reshape(img.size[1],img.size[0],3)
+    frames = get_image(args.filename)
 
     if args.conversion == "average":
-        convt_im_array = rgb2brightness_avg(im_arr)
+        convt_frames = rgb2brightness_avg(frames)
     elif args.conversion == "minmax":
-        convt_im_array = rgb2brightness_min_max(im_arr)
+        convt_frames = rgb2brightness_min_max(frames)
     elif args.conversion == "luminosity":
-        convt_im_array = rgb2brightness_luminosity(im_arr)
+        convt_frames = rgb2brightness_luminosity(frames)
 
     if args.color == "red":
         output_color = colorama.Fore.RED
@@ -115,13 +185,11 @@ if __name__ == "__main__":
         output_color = colorama.Fore.MAGENTA
     elif args.color == "yellow":
         output_color = colorama.Fore.YELLOW
-    #print_vals(convt_im_array)
 
     if args.invert:
-        invert_brightness(convt_im_array)
+        invert_brightness(convt_frames)
 
-    map2ascii(convt_im_array)
-    #print_vals(convt_im_array)
-    printImg(convt_im_array)
+    map2ascii(convt_frames)
+    printImg(convt_frames)
     
     
